@@ -1,5 +1,5 @@
 ---
-name: update
+name: lab-update
 description: Системное обновление instructions.md — когда инструкция устарела и расходится с реальной ситуацией
 ---
 

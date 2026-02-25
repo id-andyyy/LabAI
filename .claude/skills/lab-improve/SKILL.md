@@ -1,5 +1,5 @@
 ---
-name: improve
+name: lab-improve
 description: Доработка отчёта report.md по замечаниям пользователя
 ---
 
