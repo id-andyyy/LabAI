@@ -1,0 +1,19 @@
+.idea
+venv
+.venv
+__pycache__/
+*.pyc
+
+# Динамические файлы служебной директории
+.claude/lab/config.json
+.claude/lab/assignment.md
+.claude/lab/image_map.json
+.claude/lab/venv/
+settings.local.json
+
+# Рабочие файлы пользователя
+instructions.md
+report.md
+images/
+*.docx
+*.pdf
