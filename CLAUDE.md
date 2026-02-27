@@ -6,7 +6,7 @@
 - Требования ГОСТ (содержание): .claude/lab/gost-content.md
 - Требования ГОСТ (форматирование): .claude/lab/gost-formatting.md
 - Python-скрипты: .claude/lab/scripts/
-- Шаблоны: .claude/lab/templates/
+- Примеры и шаблоны: .claude/lab/templates/
 
 Базовые правила:
 - Все коммуникации и документы на русском языке.

@@ -37,7 +37,7 @@ description: Генерация финального документа (DOCX/PD
 
 Определи формат из `config.preferences.report_format` и имя файла из `config.preferences.output_filename` (по умолчанию `report`).
 
-**ВАЖНО:** report.md — это черновик. Этот этап НЕ меняет содержание report.md. Генерация итогового файла — это только форматирование: подстановка изображений, отступы, стили, титульный лист.
+**ВАЖНО:** report.md — это черновик. Этот этап НЕ меняет содержание report.md. Генерация итогового файла — это только форматирование: подстановка изображений, отступы, стили, титульный лист. Если пользователь предоставил пример готовой лабораторной (DOCX) — стили берутся из него.
 
 **Формат MD:**
 - Скопировать report.md в `{output_filename}.md` (если имя отличается от `report`; иначе — в `output.md`, чтобы не перезаписать черновик).
@@ -54,9 +54,9 @@ description: Генерация финального документа (DOCX/PD
      --images images/ \
      --image-map .claude/lab/image_map.json
    ```
-   Если есть пользовательский шаблон (`config.template.has_custom_template` = true):
+   Если есть пример-шаблон (`config.example.has_example` = true и `config.example.example_path` не null):
    ```
-     --template .claude/lab/templates/template.docx
+     --template .claude/lab/templates/example.docx
    ```
 3. Если venv нет — сообщи, что DOCX-генерация невозможна без Python. Предложи формат MD.
 

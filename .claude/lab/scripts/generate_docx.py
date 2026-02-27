@@ -7,7 +7,7 @@
     --output PATH      Выходной файл .docx (обязательно)
     --images PATH      Директория с изображениями (опционально)
     --image-map PATH   image_map.json — маппинг номер→файл (опционально)
-    --template PATH    Шаблон .docx с титульным листом (опционально)
+    --template PATH    Пример .docx — используется как шаблон стилей и титульного листа (опционально)
 """
 
 import argparse
@@ -400,7 +400,7 @@ def main():
     parser.add_argument("--output", required=True, help="Путь к выходному файлу .docx")
     parser.add_argument("--images", default=None, help="Директория с изображениями")
     parser.add_argument("--image-map", default=None, help="Путь к image_map.json")
-    parser.add_argument("--template", default=None, help="Шаблон .docx с титульным листом")
+    parser.add_argument("--template", default=None, help="Пример .docx — шаблон стилей и титульного листа")
 
     args = parser.parse_args()
 
@@ -436,11 +436,11 @@ def main():
         template_path = Path(args.template)
         if template_path.exists():
             doc = Document(str(template_path))
-            # Шаблон уже содержит титульный лист — начинаем с нового раздела
+            # Пример уже содержит титульный лист — начинаем с нового раздела
             has_title = True
         else:
             print(
-                f"Шаблон не найден: {template_path}. Создаю стандартный титульный лист.",
+                f"Пример не найден: {template_path}. Создаю стандартный титульный лист.",
                 file=sys.stderr,
             )
             doc = Document()
@@ -453,7 +453,7 @@ def main():
     setup_styles(doc)
     setup_page(doc)
 
-    # Титульный лист (если нет шаблона)
+    # Титульный лист (если нет примера-шаблона)
     if not has_title:
         add_title_page(doc, config)
 
