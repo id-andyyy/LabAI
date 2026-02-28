@@ -2,6 +2,8 @@
 
 Служебная директория: .claude/lab/
 - Конфигурация пользователя: .claude/lab/config.json
+- Полный текст исходного документа: .claude/lab/source-material.md
+- Извлечённые изображения из документа: .claude/lab/source-images/
 - Разобранное задание: .claude/lab/assignment.md
 - Требования ГОСТ (содержание): .claude/lab/gost-content.md
 - Требования ГОСТ (форматирование): .claude/lab/gost-formatting.md
