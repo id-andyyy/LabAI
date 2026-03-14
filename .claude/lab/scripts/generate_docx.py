@@ -42,7 +42,7 @@ FONT_SIZE_CAPTION = Pt(14)  # Такой же размер, как основн�
 FONT_SIZE_TITLE = Pt(16)
 LINE_SPACING = 1.5
 LINE_SPACING_SINGLE = 1.0
-FIRST_LINE_INDENT = Cm(1.25)
+FIRST_LINE_INDENT = Cm(1.5)
 PAGE_MARGIN = Cm(2)
 MAX_IMAGE_WIDTH = Cm(17)
 
@@ -54,6 +54,8 @@ RE_FIGURE_CAPTION = re.compile(r"^Рисунок (\d+)\.\s+(.+)$")
 RE_TABLE_CAPTION = re.compile(r"^Таблица (\d+)\.\s+(.+)$")
 RE_BOLD = re.compile(r"\*\*(.+?)\*\*")
 RE_ITALIC = re.compile(r"\*(.+?)\*")
+RE_CODE_FENCE = re.compile(r"^```")
+RE_INLINE_CODE = re.compile(r"`([^`]+)`")
 
 # Известные названия секций шаблона (ключ → варианты текста)
 KNOWN_SECTIONS = {
@@ -142,6 +144,13 @@ def _clone_run_format(source_run, target_run):
         target_run.font.color.rgb = source_run.font.color.rgb
 
 
+def _set_contextual_spacing(para):
+    """Установить флаг 'Не добавлять интервал между абзацами одного стиля'."""
+    pPr = para._element.get_or_add_pPr()
+    cs = OxmlElement('w:contextualSpacing')
+    pPr.append(cs)
+
+
 def parse_report_into_sections(report_text):
     """Разбить report.md на секции по главным заголовкам (H1).
 
@@ -190,6 +199,7 @@ def setup_styles(doc: Document):
     pf.left_indent = Cm(0)
     pf.right_indent = Cm(0)
     pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    _set_contextual_spacing(doc.styles["Normal"].element)
 
     # Heading 1
     h1 = doc.styles["Heading 1"]
@@ -221,10 +231,11 @@ def setup_styles(doc: Document):
     fc.font.name = FONT_NAME
     fc.font.size = FONT_SIZE_CAPTION
     fc.font.color.rgb = RGBColor(0, 0, 0)
-    fc.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    fc.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     fc.paragraph_format.space_before = Pt(6)
     fc.paragraph_format.space_after = Pt(0)
-    fc.paragraph_format.first_line_indent = Cm(0)
+    fc.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    fc.paragraph_format.line_spacing = LINE_SPACING
 
     # TableCaption
     if "TableCaption" not in [s.name for s in doc.styles]:
@@ -394,10 +405,12 @@ def insert_image(doc: Document, image_path: str):
         width_cm = max_width_cm
 
     p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.first_line_indent = Cm(0)
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
     p.paragraph_format.space_before = Pt(6)
     p.paragraph_format.space_after = Pt(0)
+    p.paragraph_format.line_spacing = LINE_SPACING
+    _set_contextual_spacing(p)
     run = p.add_run()
     run.add_picture(image_path, width=Cm(width_cm))
 
@@ -407,10 +420,12 @@ def _insert_image_at(doc, ref_para, image_path):
     from PIL import Image
 
     new_p = _insert_para_after(ref_para, doc)
-    new_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    new_p.paragraph_format.first_line_indent = Cm(0)
+    new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    new_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
     new_p.paragraph_format.space_before = Pt(6)
     new_p.paragraph_format.space_after = Pt(0)
+    new_p.paragraph_format.line_spacing = LINE_SPACING
+    _set_contextual_spacing(new_p)
 
     img = Image.open(image_path)
     width_px = img.size[0]
@@ -435,7 +450,10 @@ def add_formatted_run(paragraph, text: str):
 
     Жирный шрифт НЕ применяется в тексте — маркеры ** снимаются,
     но bold не устанавливается. Жирный допустим только в заголовках.
+    Инлайн-код (`...`) — маркеры снимаются, текст вставляется как обычный.
     """
+    # Убрать инлайн-код (оставить только текст внутри)
+    text = RE_INLINE_CODE.sub(r'\1', text)
     # Разбить текст на сегменты с форматированием
     parts = re.split(r"(\*\*.*?\*\*|\*.*?\*)", text)
     for part in parts:
@@ -443,22 +461,35 @@ def add_formatted_run(paragraph, text: str):
             # Жирный НЕ применяется — только снимаем маркеры
             run = paragraph.add_run(part[2:-2])
             run.font.name = FONT_NAME
+            run.font.size = FONT_SIZE_NORMAL
         elif part.startswith("*") and part.endswith("*") and len(part) > 2:
             run = paragraph.add_run(part[1:-1])
             run.font.name = FONT_NAME
+            run.font.size = FONT_SIZE_NORMAL
             run.italic = True
         else:
             run = paragraph.add_run(part)
             run.font.name = FONT_NAME
+            run.font.size = FONT_SIZE_NORMAL
 
 
 def process_report(doc: Document, report_text: str, image_map: dict, images_dir: Path | None):
     """Обработать report.md и добавить содержимое в документ (режим без шаблона)."""
     lines = report_text.split("\n")
     i = 0
+    in_code_block = False
 
     while i < len(lines):
         line = lines[i].rstrip()
+
+        # Блоки кода (```) — пропускаем целиком
+        if RE_CODE_FENCE.match(line.strip()):
+            in_code_block = not in_code_block
+            i += 1
+            continue
+        if in_code_block:
+            i += 1
+            continue
 
         # Пустая строка — пропускаем
         if not line:
@@ -472,6 +503,7 @@ def process_report(doc: Document, report_text: str, image_map: dict, images_dir:
             p.add_run(f"{m.group(1)}. {m.group(2)}")
             for run in p.runs:
                 run.font.name = FONT_NAME
+                run.font.size = FONT_SIZE_NORMAL
             i += 1
             continue
 
@@ -482,6 +514,7 @@ def process_report(doc: Document, report_text: str, image_map: dict, images_dir:
             p.add_run(f"{m.group(1)}. {m.group(2)}")
             for run in p.runs:
                 run.font.name = FONT_NAME
+                run.font.size = FONT_SIZE_NORMAL
             i += 1
             continue
 
@@ -496,17 +529,19 @@ def process_report(doc: Document, report_text: str, image_map: dict, images_dir:
                     insert_image(doc, str(img_path))
                 else:
                     p = doc.add_paragraph()
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    p.paragraph_format.first_line_indent = Cm(0)
+                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
                     run = p.add_run(f"[Изображение не найдено: {img_file}]")
                     run.font.name = FONT_NAME
+                    run.font.size = FONT_SIZE_NORMAL
                     run.font.color.rgb = RGBColor(255, 0, 0)
             else:
                 p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.paragraph_format.first_line_indent = Cm(0)
+                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
                 run = p.add_run(line)
                 run.font.name = FONT_NAME
+                run.font.size = FONT_SIZE_NORMAL
                 run.font.color.rgb = RGBColor(128, 128, 128)
             i += 1
             continue
@@ -518,6 +553,14 @@ def process_report(doc: Document, report_text: str, image_map: dict, images_dir:
             p.add_run(line)
             for run in p.runs:
                 run.font.name = FONT_NAME
+                run.font.size = FONT_SIZE_NORMAL
+            # Пустая строка после рисунка
+            empty_p = doc.add_paragraph()
+            empty_p.paragraph_format.space_before = Pt(0)
+            empty_p.paragraph_format.space_after = Pt(0)
+            empty_p.paragraph_format.line_spacing = LINE_SPACING
+            empty_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+            _set_contextual_spacing(empty_p)
             i += 1
             continue
 
@@ -528,11 +571,13 @@ def process_report(doc: Document, report_text: str, image_map: dict, images_dir:
             p.add_run(line)
             for run in p.runs:
                 run.font.name = FONT_NAME
+                run.font.size = FONT_SIZE_NORMAL
             i += 1
             continue
 
         # Обычный абзац
         p = doc.add_paragraph(style="Normal")
+        _set_contextual_spacing(p)
         add_formatted_run(p, line)
         i += 1
 
@@ -552,8 +597,16 @@ def _insert_section_content(doc, heading_para, lines, heading_ref, image_map, im
         images_dir: директория с изображениями
     """
     last = heading_para
+    in_code_block = False
 
     for line in lines:
+        # Блоки кода (```) — пропускаем целиком
+        if RE_CODE_FENCE.match(line.strip()):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
+
         if not line.strip():
             continue
 
@@ -572,6 +625,8 @@ def _insert_section_content(doc, heading_para, lines, heading_ref, image_map, im
             else:
                 run.font.name = FONT_NAME
                 run.font.bold = True
+            # Все шрифты строго 14 пт
+            run.font.size = FONT_SIZE_NORMAL
             last = new_p
             continue
 
@@ -586,18 +641,24 @@ def _insert_section_content(doc, heading_para, lines, heading_ref, image_map, im
                     last = _insert_image_at(doc, last, str(img_path))
                 else:
                     new_p = _insert_para_after(last, doc)
-                    new_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    new_p.paragraph_format.first_line_indent = Cm(0)
+                    new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    new_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+                    new_p.paragraph_format.line_spacing = LINE_SPACING
+                    _set_contextual_spacing(new_p)
                     run = new_p.add_run(f"[Изображение не найдено: {img_file}]")
                     run.font.name = FONT_NAME
+                    run.font.size = FONT_SIZE_NORMAL
                     run.font.color.rgb = RGBColor(255, 0, 0)
                     last = new_p
             else:
                 new_p = _insert_para_after(last, doc)
-                new_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                new_p.paragraph_format.first_line_indent = Cm(0)
+                new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                new_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+                new_p.paragraph_format.line_spacing = LINE_SPACING
+                _set_contextual_spacing(new_p)
                 run = new_p.add_run(line)
                 run.font.name = FONT_NAME
+                run.font.size = FONT_SIZE_NORMAL
                 run.font.color.rgb = RGBColor(128, 128, 128)
                 last = new_p
             continue
@@ -606,14 +667,24 @@ def _insert_section_content(doc, heading_para, lines, heading_ref, image_map, im
         m = RE_FIGURE_CAPTION.match(line)
         if m:
             new_p = _insert_para_after(last, doc)
-            new_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            new_p.paragraph_format.first_line_indent = Cm(0)
+            new_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            new_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
             new_p.paragraph_format.space_before = Pt(6)
             new_p.paragraph_format.space_after = Pt(0)
+            new_p.paragraph_format.line_spacing = LINE_SPACING
+            _set_contextual_spacing(new_p)
             run = new_p.add_run(line)
             run.font.name = FONT_NAME
-            run.font.size = FONT_SIZE_CAPTION
+            run.font.size = FONT_SIZE_NORMAL
             last = new_p
+            # Пустая строка после рисунка
+            empty_p = _insert_para_after(last, doc)
+            empty_p.paragraph_format.space_before = Pt(0)
+            empty_p.paragraph_format.space_after = Pt(0)
+            empty_p.paragraph_format.line_spacing = LINE_SPACING
+            empty_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+            _set_contextual_spacing(empty_p)
+            last = empty_p
             continue
 
         # Подпись таблицы
@@ -621,12 +692,14 @@ def _insert_section_content(doc, heading_para, lines, heading_ref, image_map, im
         if m:
             new_p = _insert_para_after(last, doc)
             new_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            new_p.paragraph_format.first_line_indent = Cm(0)
+            new_p.paragraph_format.first_line_indent = FIRST_LINE_INDENT
             new_p.paragraph_format.space_before = Pt(0)
             new_p.paragraph_format.space_after = Pt(6)
+            new_p.paragraph_format.line_spacing = LINE_SPACING
+            _set_contextual_spacing(new_p)
             run = new_p.add_run(line)
             run.font.name = FONT_NAME
-            run.font.size = FONT_SIZE_CAPTION
+            run.font.size = FONT_SIZE_NORMAL
             last = new_p
             continue
 
@@ -637,6 +710,7 @@ def _insert_section_content(doc, heading_para, lines, heading_ref, image_map, im
         new_p.paragraph_format.space_before = Pt(0)
         new_p.paragraph_format.space_after = Pt(0)
         new_p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        _set_contextual_spacing(new_p)
         add_formatted_run(new_p, line)
         last = new_p
 
