@@ -3,6 +3,7 @@
 Служебная директория: .claude/lab/
 - Конфигурация пользователя: .claude/lab/config.json
 - Полный текст исходного документа: .claude/lab/source-material.md
+- Дополнительная теория по работе в .claude/lab/reference-docs/
 - Извлечённые изображения из документа: .claude/lab/source-images/
 - Разобранное задание: .claude/lab/assignment.md
 - Требования ГОСТ (содержание): .claude/lab/gost-content.md
@@ -17,4 +18,5 @@
 - Правила форматирования документа — в gost-formatting.md. Используй при генерации DOCX.
 - Если не хватает знаний — ищи в интернете. Не выдумывай.
 - Буква ё обязательна.
+- Супердлинное тире (—) запрещено. Разрешено только длинное тире (–).
 - Python-скрипты запускай через venv: .claude/lab/venv/bin/python (macOS/Linux) или .claude/lab/venv/Scripts/python.exe (Windows).
