@@ -773,11 +773,12 @@ def _handle_placeholder(line, image_map, images_dir):
         return None
     fig_num = m.group(1)
     img_file = image_map.get(fig_num) or image_map.get(int(fig_num))
-    if img_file and images_dir:
-        img_path = images_dir / img_file if not Path(img_file).is_absolute() else Path(img_file)
-        if img_path.exists():
+    if img_file:
+        img_path = Path(img_file)
+        if not img_path.is_absolute() and not img_path.is_file() and images_dir:
+            img_path = images_dir / img_path
+        if img_path.is_file():
             return fig_num, str(img_path)
-        return fig_num, None
     return fig_num, None
 
 
@@ -1204,21 +1205,11 @@ def main():
     # Создать / открыть документ
     if args.template:
         template_path = Path(args.template)
-        if template_path.exists():
-            doc = Document(str(template_path))
-            # Режим шаблона: не трогаем стили, титульный лист, заголовки секций
-            process_report_with_template(doc, report_text, image_map, images_dir)
-        else:
-            print(
-                f"Шаблон не найден: {template_path}. Создаю документ с нуля.",
-                file=sys.stderr,
-            )
-            doc = Document()
-            setup_styles(doc)
-            setup_page(doc)
-            if not args.no_title_page:
-                add_title_page(doc, config)
-            process_report(doc, report_text, image_map, images_dir)
+        if not template_path.is_file():
+            parser.error(f"Шаблон не найден: {template_path}")
+        doc = Document(str(template_path))
+        # Режим шаблона: не трогаем стили, титульный лист, заголовки секций
+        process_report_with_template(doc, report_text, image_map, images_dir)
     else:
         doc = Document()
         setup_styles(doc)

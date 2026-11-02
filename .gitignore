@@ -1,17 +1,18 @@
 .idea
+.DS_Store
 venv
 .venv
 __pycache__/
 *.pyc
 
 # Динамические файлы служебной директории
-.claude/lab/config.json
-.claude/lab/assignment.md
-.claude/lab/source-material.md
-.claude/lab/source-images/
-.claude/lab/image_map.json
-.claude/lab/venv/
-settings.local.json
+.lab/config.json
+.lab/assignment.md
+.lab/source-material.md
+.lab/reference-docs/
+.lab/source-images/
+.lab/image_map.json
+.lab/venv/
 
 # Рабочие файлы пользователя
 instructions.md
@@ -19,3 +20,4 @@ report.md
 images/
 *.docx
 *.pdf
+*.docx.backup*

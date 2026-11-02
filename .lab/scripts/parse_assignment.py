@@ -56,15 +56,15 @@ def parse_pdf_full(file_path: Path, images_dir: Path) -> str:
                 ext = Path(image.name).suffix if image.name else ".png"
                 if not ext:
                     ext = ".png"
-                image_filename = f"img_{image_counter:03d}{ext}"
+                image_filename = f"{file_path.stem}_pdf_img_{image_counter:03d}{ext}"
                 image_path = images_dir / image_filename
 
                 with open(image_path, "wb") as f:
                     f.write(image.data)
 
-                rel_path = os.path.relpath(image_path)
+                rel_path = Path(os.path.relpath(image_path)).as_posix()
                 result_parts.append(
-                    f"![Изображение {image_counter} (стр. {page_num})]({rel_path})"
+                    f"![Изображение {image_counter} (стр. {page_num})](<{rel_path}>)"
                 )
 
     return "\n\n".join(result_parts)
@@ -121,13 +121,13 @@ def parse_docx_full(file_path: Path, images_dir: Path) -> str:
                 "image/x-wmf": ".wmf",
             }
             ext = ext_map.get(content_type, ".png")
-            image_filename = f"img_{image_counter:03d}{ext}"
+            image_filename = f"{file_path.stem}_docx_img_{image_counter:03d}{ext}"
             image_path = images_dir / image_filename
 
             with open(image_path, "wb") as f:
                 f.write(rel.target_part.blob)
 
-            rel_path = os.path.relpath(image_path)
+            rel_path = Path(os.path.relpath(image_path)).as_posix()
             image_rels[rel_id] = rel_path
 
     # Собрать текст с информацией об изображениях
@@ -158,7 +158,7 @@ def parse_docx_full(file_path: Path, images_dir: Path) -> str:
             if embed and embed in image_rels:
                 image_insert_counter += 1
                 parts.append(
-                    f"![Изображение {image_insert_counter}]({image_rels[embed]})"
+                    f"![Изображение {image_insert_counter}](<{image_rels[embed]}>)"
                 )
 
         if text:
@@ -183,7 +183,7 @@ def parse_docx_full(file_path: Path, images_dir: Path) -> str:
         if rel_id not in referenced:
             unreferenced_counter += 1
             parts.append(
-                f"![Изображение {unreferenced_counter} (не привязано к тексту)]({rel_path})"
+                f"![Изображение {unreferenced_counter} (не привязано к тексту)](<{rel_path}>)"
             )
 
     return "\n\n".join(parts)
@@ -223,8 +223,8 @@ def main():
     )
     parser.add_argument(
         "--images-dir",
-        default=".claude/lab/source-images",
-        help="Директория для сохранения извлечённых изображений (по умолчанию: .claude/lab/source-images)",
+        default=".lab/source-images",
+        help="Директория для сохранения извлечённых изображений (по умолчанию: .lab/source-images)",
     )
 
     args = parser.parse_args()
